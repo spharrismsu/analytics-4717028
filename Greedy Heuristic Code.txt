@@ -1,0 +1,542 @@
+# heuristic code ----------------------------------------
+
+#The heuristic code is provided below. The parameters in this code are for the first instance of the small OR suite size.
+
+library(tidyverse) #load library
+
+start_time <- Sys.time()
+
+#Declare and assign indices
+index_i <- 40
+index_j <- 8
+index_k <- 5
+
+#Declare and Assign Pijk, Ci, and Xijk (baseline schedule aka Bbest). Xijk is a binary decision variable 
+P <- array(0, dim = c(index_i, index_j, index_k),
+           dimnames = list(
+             i = paste0("i", 1:index_i),
+             j = paste0("j", 1:index_j),
+             k = paste0("k", 1:index_k)
+           ))
+
+
+# k = 1
+
+P[,,1] <- matrix(c(
+1, 1, 1, 1, 3, 1, 1, 1,
+1, 3, 2, 1, 2, 4, 3, 1,
+2, 2, 5, 2, 2, 5, 2, 1,
+1, 3, 4, 2, 1, 3, 3, 2,
+1, 2, 1, 1, 1, 1, 1, 2,
+1, 1, 2, 1, 1, 3, 3, 2,
+3, 2, 2, 4, 1, 3, 2, 3,
+1, 3, 1, 4, 3, 2, 1, 4,
+2, 1, 1, 2, 3, 1, 1, 1,
+1, 1, 2, 1, 3, 2, 1, 1,
+2, 1, 5, 1, 2, 1, 1, 1,
+3, 1, 1, 3, 2, 3, 4, 2,
+1, 1, 1, 3, 2, 1, 2, 1,
+1, 1, 1, 2, 3, 1, 2, 2,
+2, 2, 5, 2, 3, 1, 3, 1,
+2, 1, 1, 1, 1, 2, 3, 1,
+1, 1, 2, 2, 4, 3, 1, 2,
+1, 1, 1, 1, 2, 3, 1, 3,
+1, 2, 1, 2, 2, 2, 2, 2,
+2, 1, 2, 2, 2, 1, 3, 2,
+2, 1, 1, 2, 1, 2, 1, 3,
+2, 2, 1, 1, 3, 2, 5, 2,
+2, 4, 1, 1, 5, 2, 1, 4,
+2, 2, 1, 5, 2, 4, 3, 2,
+1, 1, 2, 1, 1, 1, 3, 2,
+1, 1, 2, 3, 1, 2, 5, 4,
+2, 1, 4, 4, 1, 1, 1, 2,
+3, 1, 2, 1, 1, 1, 1, 2,
+2, 1, 1, 1, 1, 1, 5, 2,
+1, 2, 2, 1, 3, 1, 4, 5,
+1, 1, 3, 2, 4, 2, 2, 2,
+5, 1, 3, 5, 2, 1, 3, 3,
+1, 2, 1, 1, 1, 3, 2, 2,
+4, 4, 1, 1, 4, 2, 1, 2,
+2, 2, 4, 2, 2, 1, 2, 2,
+3, 2, 1, 3, 1, 1, 3, 2,
+1, 3, 5, 3, 1, 1, 2, 2,
+2, 2, 2, 3, 2, 3, 1, 3,
+4, 3, 1, 1, 1, 5, 2, 2,
+1, 1, 3, 2, 3, 3, 1, 3
+), nrow = index_i, ncol = index_j, byrow = TRUE)
+
+# k = 2
+P[,,2] <- matrix(c(
+1, 1, 2, 1, 1, 2, 3, 1,
+2, 1, 1, 1, 2, 3, 1, 2,
+2, 2, 1, 2, 4, 2, 2, 1,
+4, 1, 1, 2, 1, 3, 3, 1,
+1, 2, 3, 2, 1, 1, 5, 1,
+4, 2, 2, 3, 2, 1, 2, 5,
+2, 1, 2, 2, 1, 2, 3, 1,
+2, 1, 3, 1, 4, 4, 2, 2,
+2, 2, 3, 2, 2, 3, 3, 2,
+5, 4, 1, 1, 1, 1, 4, 1,
+1, 2, 1, 1, 4, 2, 2, 3,
+1, 2, 2, 2, 1, 3, 1, 1,
+1, 1, 1, 3, 1, 3, 3, 2,
+2, 1, 5, 3, 1, 3, 2, 3,
+1, 1, 1, 1, 1, 1, 2, 2,
+1, 1, 4, 2, 2, 1, 2, 2,
+2, 1, 1, 5, 1, 2, 3, 1,
+1, 1, 2, 2, 1, 2, 1, 2,
+3, 1, 2, 1, 4, 3, 2, 2,
+2, 2, 2, 1, 1, 3, 2, 1,
+2, 1, 3, 2, 1, 2, 3, 3,
+1, 1, 2, 5, 3, 2, 2, 3,
+2, 1, 2, 3, 1, 2, 1, 1,
+1, 1, 5, 5, 2, 3, 2, 2,
+1, 3, 1, 1, 1, 3, 1, 1,
+1, 2, 1, 3, 2, 3, 3, 3,
+2, 1, 1, 1, 3, 1, 2, 2,
+4, 2, 4, 1, 1, 2, 5, 3,
+1, 4, 1, 1, 3, 3, 1, 1,
+2, 2, 1, 1, 2, 3, 4, 1,
+1, 1, 3, 1, 1, 1, 2, 2,
+1, 1, 1, 1, 1, 3, 1, 2,
+2, 5, 1, 1, 1, 1, 2, 1,
+1, 1, 1, 1, 2, 4, 3, 1,
+1, 2, 1, 3, 4, 2, 4, 1,
+1, 2, 4, 4, 1, 5, 5, 1,
+3, 1, 3, 3, 1, 3, 3, 1,
+1, 1, 4, 2, 2, 1, 1, 5,
+4, 2, 1, 2, 1, 1, 1, 3,
+1, 1, 3, 2, 4, 2, 1, 2
+), nrow = index_i, ncol = index_j, byrow = TRUE)
+
+# k = 3
+P[,,3] <- matrix(c(
+2, 5, 2, 1, 2, 3, 1, 5,
+4, 1, 1, 5, 2, 3, 5, 3,
+4, 2, 5, 3, 1, 4, 4, 1,
+2, 5, 2, 1, 3, 1, 2, 5,
+3, 3, 4, 2, 5, 1, 5, 1,
+2, 4, 2, 3, 2, 5, 1, 4,
+1, 4, 4, 1, 2, 4, 1, 4,
+4, 4, 5, 4, 4, 1, 2, 2,
+3, 2, 3, 2, 2, 3, 5, 4,
+1, 3, 3, 3, 4, 2, 2, 2,
+5, 4, 1, 4, 4, 4, 5, 1,
+1, 5, 1, 1, 3, 1, 2, 2,
+3, 1, 2, 1, 2, 1, 1, 3,
+4, 2, 3, 4, 5, 1, 4, 4,
+5, 3, 3, 1, 2, 2, 3, 2,
+1, 4, 3, 4, 2, 4, 4, 5,
+4, 5, 1, 4, 4, 4, 3, 3,
+4, 1, 4, 1, 1, 2, 1, 5,
+1, 1, 5, 1, 4, 1, 2, 4,
+1, 4, 5, 1, 1, 3, 3, 2,
+2, 1, 1, 1, 4, 4, 1, 5,
+2, 3, 5, 2, 1, 1, 3, 5,
+4, 5, 5, 5, 3, 1, 1, 1,
+5, 2, 3, 2, 5, 5, 4, 1,
+3, 1, 4, 4, 5, 4, 2, 2,
+1, 1, 3, 3, 4, 1, 2, 2,
+3, 1, 4, 2, 1, 1, 4, 1,
+1, 3, 2, 2, 1, 5, 4, 2,
+3, 4, 2, 1, 1, 3, 3, 3,
+5, 2, 4, 4, 5, 2, 3, 3,
+1, 1, 2, 4, 1, 4, 4, 5,
+2, 5, 3, 2, 3, 4, 4, 5,
+1, 5, 3, 2, 3, 1, 4, 2,
+1, 3, 1, 1, 4, 3, 4, 5,
+2, 1, 3, 2, 2, 4, 2, 2,
+2, 2, 2, 2, 1, 4, 4, 5,
+2, 4, 2, 2, 1, 4, 1, 5,
+3, 1, 1, 3, 3, 2, 4, 3,
+2, 2, 1, 2, 2, 2, 1, 4,
+2, 3, 4, 4, 3, 5, 1, 5
+), nrow = index_i, ncol = index_j, byrow = TRUE)
+
+# k = 4
+P[,,4] <- matrix(c(
+3, 2, 3, 4, 5, 3, 5, 5,
+1, 2, 3, 3, 4, 1, 2, 4,
+4, 3, 4, 2, 4, 1, 4, 3,
+3, 3, 4, 2, 2, 2, 3, 4,
+3, 1, 2, 3, 2, 2, 1, 3,
+5, 2, 4, 2, 3, 2, 3, 1,
+2, 2, 5, 3, 1, 4, 2, 5,
+4, 1, 4, 4, 2, 3, 4, 1,
+1, 3, 5, 3, 4, 2, 2, 3,
+5, 5, 2, 1, 4, 1, 2, 3,
+3, 1, 2, 3, 2, 3, 1, 1,
+2, 2, 2, 5, 1, 3, 4, 4,
+1, 5, 3, 4, 2, 1, 2, 2,
+4, 2, 3, 2, 5, 1, 2, 3,
+1, 4, 3, 1, 2, 3, 1, 4,
+5, 2, 2, 4, 3, 5, 3, 2,
+3, 1, 2, 5, 3, 4, 1, 2,
+5, 2, 1, 1, 5, 4, 1, 2,
+1, 3, 4, 2, 3, 3, 1, 2,
+3, 5, 4, 5, 1, 1, 3, 1,
+4, 1, 3, 2, 1, 1, 4, 5,
+4, 4, 5, 4, 2, 1, 3, 3,
+1, 3, 5, 4, 1, 1, 1, 5,
+1, 1, 3, 4, 4, 2, 5, 1,
+4, 5, 2, 3, 5, 5, 1, 4,
+5, 1, 3, 1, 1, 2, 4, 3,
+2, 1, 2, 2, 1, 2, 1, 4,
+3, 1, 3, 5, 1, 1, 1, 3,
+1, 4, 5, 3, 1, 4, 4, 2,
+4, 3, 2, 1, 2, 2, 4, 5,
+2, 4, 1, 1, 5, 2, 2, 2,
+1, 3, 1, 1, 2, 1, 4, 2,
+3, 2, 4, 2, 3, 1, 1, 4,
+4, 5, 2, 4, 1, 4, 4, 1,
+1, 2, 2, 3, 4, 2, 3, 5,
+4, 1, 4, 5, 3, 1, 2, 4,
+2, 1, 4, 5, 5, 1, 2, 2,
+2, 3, 2, 5, 5, 2, 3, 1,
+2, 3, 3, 4, 4, 5, 4, 3,
+4, 2, 1, 1, 3, 2, 1, 3
+), nrow = index_i, ncol = index_j, byrow = TRUE)
+
+# k = 5
+P[,,5] <- matrix(c(
+5, 3, 1, 4, 1, 5, 1, 2,
+5, 1, 3, 5, 2, 4, 4, 4,
+5, 5, 5, 3, 4, 3, 3, 3,
+4, 4, 2, 2, 3, 5, 5, 5,
+5, 3, 5, 1, 5, 5, 1, 3,
+3, 3, 3, 1, 2, 5, 5, 2,
+2, 2, 3, 2, 4, 4, 5, 5,
+3, 4, 5, 3, 5, 3, 5, 5,
+4, 4, 4, 5, 1, 5, 4, 5,
+4, 4, 4, 5, 2, 4, 1, 5,
+3, 4, 4, 1, 4, 1, 5, 5,
+2, 3, 4, 3, 5, 4, 5, 2,
+5, 2, 2, 2, 5, 5, 2, 5,
+2, 2, 5, 4, 5, 2, 5, 4,
+3, 3, 4, 4, 5, 5, 5, 2,
+5, 2, 2, 4, 1, 4, 4, 3,
+5, 3, 2, 2, 3, 5, 5, 4,
+4, 4, 1, 5, 4, 4, 4, 5,
+5, 2, 5, 5, 5, 3, 1, 3,
+5, 4, 5, 5, 5, 5, 5, 5,
+2, 4, 3, 3, 4, 3, 5, 3,
+3, 4, 4, 1, 3, 3, 5, 5,
+5, 5, 5, 5, 2, 5, 5, 5,
+3, 1, 4, 3, 5, 5, 5, 5,
+4, 2, 5, 4, 4, 4, 3, 3,
+2, 5, 3, 5, 4, 5, 4, 2,
+5, 5, 2, 3, 5, 3, 5, 3,
+3, 2, 5, 3, 5, 5, 3, 2,
+4, 3, 2, 5, 5, 5, 2, 4,
+5, 4, 2, 5, 4, 3, 5, 2,
+3, 2, 5, 4, 1, 5, 1, 5,
+3, 4, 1, 1, 2, 3, 5, 3,
+1, 4, 3, 2, 5, 5, 1, 2,
+4, 2, 1, 5, 4, 5, 5, 1,
+1, 3, 4, 4, 5, 1, 4, 5,
+5, 1, 2, 1, 3, 5, 5, 4,
+3, 2, 5, 4, 3, 4, 5, 1,
+2, 4, 5, 4, 1, 5, 5, 5,
+4, 2, 3, 2, 2, 5, 3, 2,
+2, 3, 3, 4, 2, 1, 5, 5
+), nrow = index_i, ncol = index_j, byrow = TRUE)
+
+
+
+C <- c(
+  372.92, 154.87, 137.54, 347.79, 427.32, 283.81, 246.51, 185.56, 192.92, 169.31,
+  193.26, 265.73, 270.18, 212.66, 87.31, 327.25, 123.65, 334.19, 261.95, 253.76,
+  473.81, 122.20, 249.25, 361.22, 45.58, 229.67, 307.62, 224.46, 356.92, 442.64,
+  567.27, 278.70, 195.82, 182.58, 213.16, 449.39, 247.13, 300.35, 175.86, 578.45
+)
+
+
+
+
+
+
+#Declare and Assign number of schedule iterations S, to 20
+S <- 20
+
+#Declare and Assign schedule iteration counter s, to 1
+s <- 1 
+
+#Declare and Assign NumberScheduleImprovements, number of schedule improvements to 0
+NumberScheduleImprovements <- 0
+
+ZBest <- 1000000000
+
+#improvement log, record the initial ZBest as Improvement = 0
+ImprovementLog <- data.frame(
+  				Improvement = 0L,         	# improvement index 0 = initial starting solution
+  				ZBest       = ZBest,	# initial ZBest value
+				ValueOfS = 0,
+				ValueOfL = 0,
+  				stringsAsFactors = FALSE
+				)
+
+
+
+#--------------------------start S loop here
+while (s <= S)
+{
+
+ #Declare and assign Xijk aka Bbest (random feasible schedule to start)
+
+ # shuffle assignments (TRUE => random assignment of (j,k) to i)
+ shuffle_assignments <- TRUE
+
+ # === Create all unique (j,k) pairs and assign to i ===
+ pairs <- expand.grid(j = 1:index_j, k = 1:index_k)  # 60 rows, unique (j,k)
+ if (shuffle_assignments) pairs <- pairs[sample(nrow(pairs)), ]  # randomize order
+
+ # Build X array and fill
+ X <- array(0L, dim = c(index_i, index_j, index_k),
+           dimnames = list(
+             i = paste0("i", 1:index_i),
+             j = paste0("j", 1:index_j),
+             k = paste0("k", 1:index_k)
+           ))
+
+ for (ii in 1:index_i) {
+  			X[ii, pairs$j[ii], pairs$k[ii]] <- 1L
+			}
+
+
+ #Declare and Assign XNEWijk, which will be a new binary decision variable. For now, set it equal to Xijk
+ XNEW <- array(0, dim = c(index_i, index_j, index_k),
+           dimnames = list(
+             i = paste0("i", 1:index_i),
+             j = paste0("j", 1:index_j),
+             k = paste0("k", 1:index_k)
+           ))
+ XNEW <- X
+
+ #Declare and Assign XBBESTijk, which will be a new binary decision variable that keeps track of best schedule within swaps. For now, set it equal to Xijk
+ XBESTSWAPS <- array(0, dim = c(index_i, index_j, index_k),
+           dimnames = list(
+             i = paste0("i", 1:index_i),
+             j = paste0("j", 1:index_j),
+             k = paste0("k", 1:index_k)
+           ))
+ XBESTSWAPS <- X
+
+ #Calculate Average Daily Workload
+ AvgDailyWorkload <- sum(C * X)/index_k
+
+ #Declare and Assign number of loop iterations L, to 25
+ L <- 25
+
+ #Declare and Assign loop iteration counter l, to 0
+ l <- 1
+
+
+ while (l <= L)
+    {
+
+	#check if l > 1
+		#if so, then X needs to change to XBESTSWAPS so that each successive swaps loop starts with the best schedule from the last swaps loop. If l = 1 then just start with baseline sched as X
+	if(l > 1)
+	{
+		X <- XBESTSWAPS
+	}
+
+	#Calculate SPDDeviationsOverK, which is the SPD Deviation for each k
+	SPDDeviationsOverK <- sapply(1:index_k, function(k) abs(sum(X[,,k] * C) - AvgDailyWorkload))
+
+	#Calcule PreferenceCostsOverK, which is the Preference Cost Pijk * Xijk for each k
+	PreferenceCostsOverK <- sapply(1:index_k, function(k) sum(P[,,k] * X[,,k]))
+
+	#Calculate DevTimesPrefCostOverk, which is SPDDeviationsOverK * PreferenceCostsOverK for each k
+	DevTimesPrefCostOverk <- SPDDeviationsOverK * PreferenceCostsOverK
+
+	#set NumberOfKIterations to 1 because no iterating through kmaxs in this heuristic
+	NumberOfKIterations <- 1
+
+	#Calculate kMax, which is the k with the nth largest DevTimesPrefCostOverk with nth matching the number of NumberOfKIterations 
+		#FirstRank the DevTimesPrefCostOverk values in decreasing order
+		ordered_k <- order(DevTimesPrefCostOverk, decreasing = TRUE)
+
+		#Then pick the k corresponding to the kth largest value (where position = NumberOfKIterations)
+		kMax <- ordered_k[NumberOfKIterations]
+			
+	#set Zbestswaps to arbitrarily high value so that there is always at least one improvement in a swap loop
+	Zbestswaps <- 1000000000
+
+
+		
+	#cross-j swaps using explicit for-loops 
+	k_list <- setdiff(1:index_k, kMax)
+	total_swaps <- length(k_list) * index_j * index_j
+	stopifnot(total_swaps == (index_k - 1) * index_j * index_j)
+
+	for (anchor_j in 1:index_j) 
+	{
+  		for (j_other in 1:index_j) 
+		{
+    			for (k_target in k_list) 
+				{
+
+      					# defensive: find the unique i's assigned to these (j,k) positions
+     					i_anchor_vec <- which(X[, anchor_j, kMax] == 1)      # row for (anchor_j, kMax)
+      					i_other_vec  <- which(X[, j_other, k_target] == 1)   # row for (j_other, k_target)
+
+      					if (length(i_anchor_vec) == 0 || length(i_other_vec) == 0) 
+					{
+        					# nothing to swap; XNEW remains equal to X
+      					} 
+					else 
+					{
+        					i_b <- i_anchor_vec[1]   # anchor row (row assigned to (anchor_j, kMax))
+        					i_a <- i_other_vec[1]    # other row (row assigned to (j_other, k_target))
+	
+        					if (i_a == i_b) 
+						{
+          						# no-op (same row), skip swap
+        					} 
+						else 
+						{
+          						# perform the non-cumulative 4-entry cross-j swap on XNEW
+          						# Before:
+          						#   (i_a, j_other, k_target) == 1
+          						#   (i_b, anchor_j, kMax)   == 1
+          						# After:
+          						#   (i_a, j_other, k_target) -> 0
+          						#   (i_b, j_other, k_target) -> 1
+          						#   (i_b, anchor_j, kMax)   -> 0
+          						#   (i_a, anchor_j, kMax)   -> 1
+          						XNEW[i_a, j_other, k_target] <- 0
+          						XNEW[i_b, j_other, k_target] <- 1
+          						XNEW[i_b, anchor_j, kMax] <- 0
+          						XNEW[i_a, anchor_j, kMax] <- 1
+        					}
+      					}
+
+      				#calculate Zswaps, which is the total SPD workload deviation (objective function term without the weight) of XNEW
+      				Zswaps <- sum(sapply(1:index_k, function(k) abs(sum(XNEW[,,k] * C) - AvgDailyWorkload)))
+
+      				#check if Zswaps < ZBest this is the "global check"
+      				if (Zswaps < ZBest) 
+				{
+        				ZBest <- Zswaps
+        				XBEST <- XNEW
+        				NumberScheduleImprovements <- NumberScheduleImprovements + 1
+        				ImprovementLog <- rbind(
+          							ImprovementLog,
+          							data.frame(Improvement = NumberScheduleImprovements,
+                     						ZBest = ZBest,
+								ValueOfS = s,
+                     						ValueOfL = l,
+                     						stringsAsFactors = FALSE)
+        							)
+      				}
+
+      				#check if Zswaps < Zbestswaps
+				#if so, then update XBESTSWAPS to XNEW and Zbestswaps to Zswaps. This will always happen on first swap because Zbestswaps starts each loop at an arbitrarily high value 
+      				if (Zswaps < Zbestswaps) 
+				{
+        				XBESTSWAPS <- XNEW
+        				Zbestswaps <- Zswaps
+      				}
+
+     				#always reset XNEWijk back to Xijk before next swap
+      				XNEW <- X
+
+    			} # end for k_target
+  		} # end for j_other
+	} # end for anchor_j
+
+		
+	#increment l by 1
+	l <- l + 1
+    } #end of while (l <= L) here
+
+ #increment s by 1
+ s <- s + 1
+} #end of while (s <= S) here----------------------------------
+
+
+#run phase 2 Hungarian solver to improve total preferences score
+
+library(clue)
+
+# Record total preference score before permutations
+TotalPreferencesScore_before <- sum(XBEST * P)
+
+# Loop over each k and optimally permute the assigned i's across j positions
+for (k in 1:index_k) {
+  # indices of i currently assigned to any j in this k (should be length index_j)
+  i_assigned <- which(apply(XBEST[,,k], 1, function(row) any(row == 1)))
+  if (length(i_assigned) != index_j) {
+    warning(sprintf("For k=%d, expected %d assigned i's but found %d. Skipping k.", k, index_j, length(i_assigned)))
+    next
+  }
+  
+  # build cost matrix rows = i_assigned, cols = j=1..index_j
+  cost_mat <- matrix(NA_real_, nrow = index_j, ncol = index_j)
+  for (r in seq_along(i_assigned)) {
+    ii <- i_assigned[r]
+    cost_mat[r, ] <- P[ii, , k]
+  }
+
+  # Solve assignment (minimization) and apply the permutation for this k
+  assignment_cols <- clue::solve_LSAP(cost_mat)
+  XBEST_candidate <- XBEST
+  for (ii in i_assigned) XBEST_candidate[ii, , k] <- 0L
+  for (r in seq_along(i_assigned)) {
+    ii <- i_assigned[r]
+    new_j <- as.integer(assignment_cols[r])
+    XBEST_candidate[ii, new_j, k] <- 1L
+  }
+
+  # Accept the per-k optimum
+  XBEST <- XBEST_candidate
+}
+
+# Totals after permutations
+TotalPreferencesScore_after <- sum(XBEST * P)
+Total_pref_improvement <- TotalPreferencesScore_before - TotalPreferencesScore_after
+
+
+#record time to execute heuristic
+end_time <- Sys.time()
+runtime <- end_time - start_time
+TotalSPDDeviation <- sum(sapply(1:index_k, function(k) abs(sum(XBEST[,,k] * C) - AvgDailyWorkload)))
+TotalPreferencesScore <- sum(XBEST * P)
+print(runtime)
+print(ZBest)
+print(TotalSPDDeviation)
+print(TotalPreferencesScore)
+
+#double check on constraints
+# Sum XBEST[i,j,k] across all j and k for each i, should equal 1
+sum_i <- apply(XBEST, 1, sum)
+
+# View the results
+sum_i
+
+
+# Sum XBEST[i,j,k] across all i and k for each j, should equal k
+sum_j <- apply(XBEST, 2, sum)
+
+# View the results
+sum_j
+
+# Sum XBEST[i,j,k] across all i and j for each k, should equal j
+sum_k <- apply(XBEST, 3, sum)
+
+# View the results
+sum_k
+
+
+
+
+
+
+
+
+
+
+
+
+

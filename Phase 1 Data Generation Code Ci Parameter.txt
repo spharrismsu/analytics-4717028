@@ -1,0 +1,136 @@
+
+#code to generate phase 1 Ci parameter ----------------------------------------------------------
+
+min_val <- 30
+max_val <- 720
+digits <- 2   # number of decimal places
+global_seed <- 100   # set to integer for reproducible runs, or NULL for different random draws each run. Set to 10 for 1-10 and 100 for 11-20
+
+# Normal distribution parameters
+mean_val <- 244.18
+sd_val   <- 148.75
+
+# Minimum allowable Cj value 
+min_cutoff <- 35
+# -----------------------------------
+
+# generate a numeric vector of length n from Normal(mean_val, sd_val),
+# rejecting any draw < min_cutoff (rejection sampling). 
+generate_instance <- function(n, min_val = 30, max_val = 720, digits = 2, seed = NULL,
+                              mean_val = 244.18, sd_val = 148.75, min_cutoff = 35) {
+  if (!is.null(seed)) set.seed(seed)
+  vals <- numeric(0)
+  # Keep drawing until we have n values >= min_cutoff
+  while (length(vals) < n) {
+    need <- n - length(vals)
+    # oversample by factor 2 for efficiency (adjust if you like)
+    draws <- rnorm(need * 2, mean = mean_val, sd = sd_val)
+    # keep only draws meeting the cutoff
+    draws <- draws[draws >= min_cutoff]
+    if (length(draws) > 0) {
+      vals <- c(vals, draws)
+    }
+    # loop continues until length(vals) >= n
+  }
+  vals <- vals[1:n]
+  vals <- round(vals, digits = digits)
+  return(vals)
+}
+
+# write AMPL-format .dat file 
+write_ampl_dat <- function(vals, filepath) {
+  n <- length(vals)
+  header <- "data;\nparam: C :=\n"
+  lines <- vapply(seq_len(n), function(i) {
+    sprintf("%d\t%s", i, formatC(vals[i], format = "f", digits = digits))
+  }, FUN.VALUE = character(1))
+  footer <- "\n;\n"
+  content <- c(header, lines, footer)
+  writeLines(content, con = filepath, useBytes = TRUE)
+}
+
+#  write R-style vector file "C <- c(...)" with wrapped lines
+write_heuristic_txt <- function(vals, filepath, wrap = 10) {
+  n <- length(vals)
+  formatted <- vapply(vals, function(x) formatC(x, format = "f", digits = digits), FUN.VALUE = character(1))
+  chunks <- split(formatted, ceiling(seq_along(formatted) / wrap))
+  chunk_lines <- vapply(chunks, function(chunk) {
+    paste(chunk, collapse = ", ")
+  }, FUN.VALUE = character(1))
+  content_lines <- character(0)
+  for (i in seq_along(chunk_lines)) {
+    content_lines <- c(content_lines, paste0("  ", chunk_lines[i], if (i < length(chunk_lines)) "," else ""))
+  }
+  full <- c("C <- c(", content_lines, ")")
+  writeLines(full, con = filepath, useBytes = TRUE)
+}
+
+
+# Validate global_seed
+if (!is.null(global_seed) && !is.numeric(global_seed)) {
+  stop("global_seed must be NULL or an integer.")
+}
+
+# Instance counts and lengths (30 instances total)
+nS <- 10; lenS <- 40    # first 10 instances, j = 40
+nM <- 10; lenM <- 60    # second 10 instances, j = 60
+nL <- 10; lenL <- 120   # last 10 instances, j = 120
+
+# deterministic per-instance seed if requested
+instance_seed <- function(base_seed, group, index) {
+  if (is.null(base_seed)) return(NULL)
+  group_code <- switch(group, S = 1, M = 2, L = 3, 0)
+  return(as.integer(base_seed + group_code * 1000 + index))
+}
+
+# Generate S instances (size 40)
+for (i in seq_len(nS)) {
+  seed_i <- instance_seed(global_seed, "S", i)
+  vals <- generate_instance(lenS, min_val, max_val, digits, seed = seed_i,
+                            mean_val = mean_val, sd_val = sd_val, min_cutoff = min_cutoff)
+  ampl_name <- file.path(out_dir, paste0("2BAMLGPD_Phase_1_Data_S", i, ".dat"))
+  heur_name <- file.path(out_dir, paste0("HeuristicS", i, ".txt"))
+  write_ampl_dat(vals, ampl_name)
+  write_heuristic_txt(vals, heur_name)
+}
+
+# Generate M instances (size 60)
+for (i in seq_len(nM)) {
+  seed_i <- instance_seed(global_seed, "M", i)
+  vals <- generate_instance(lenM, min_val, max_val, digits, seed = seed_i,
+                            mean_val = mean_val, sd_val = sd_val, min_cutoff = min_cutoff)
+  ampl_name <- file.path(out_dir, paste0("2BAMLGPD_Phase_1_Data_M", i, ".dat"))
+  heur_name <- file.path(out_dir, paste0("HeuristicM", i, ".txt"))
+  write_ampl_dat(vals, ampl_name)
+  write_heuristic_txt(vals, heur_name)
+}
+
+# Generate L instances (size 120)
+for (i in seq_len(nL)) {
+  seed_i <- instance_seed(global_seed, "L", i)
+  vals <- generate_instance(lenL, min_val, max_val, digits, seed = seed_i,
+                            mean_val = mean_val, sd_val = sd_val, min_cutoff = min_cutoff)
+  ampl_name <- file.path(out_dir, paste0("2BAMLGPD_Phase_1_Data_L", i, ".dat"))
+  heur_name <- file.path(out_dir, paste0("HeuristicL", i, ".txt"))
+  write_ampl_dat(vals, ampl_name)
+  write_heuristic_txt(vals, heur_name)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,248 @@
+# code to generate phase 2 Pijk parameter -----------------------------------------------------------------------
+
+seed    <- 20    # integer for reproducible draws, for this study it was set to 100 for 1-10 and 20 for 11-20
+
+prob_csv_path <- file.path(out_dir, "Phase 2 Probability Guidance to GPT.csv")
+
+if (!is.null(seed)) set.seed(seed)
+
+
+
+write_ampl_dat <- function(Parray, outpath) {
+  dims <- dim(Parray)
+  index_i <- dims[1]; index_j <- dims[2]; index_k <- dims[3]
+
+  lines <- character(0)
+  lines <- c(lines, "data;")
+  lines <- c(lines, "#do not worry about the Y parameter below, I will input this separately")
+  y_header <- paste0("param Y: ", paste(1:index_j, collapse = " "), " := ")
+  lines <- c(lines, y_header)
+  lines <- c(lines, ";")
+  lines <- c(lines, "param P:=")
+
+  for (kk in 1:index_k) {
+    header_line <- paste0("[*,*,", kk, "]: ", paste(1:index_j, collapse = "\t"), " :=\n")
+    lines <- c(lines, header_line)
+    for (ii in 1:index_i) {
+      rowvals <- paste(Parray[ii, , kk], collapse = "\t")
+      rowline <- paste0(ii, "\t", rowvals)
+      lines <- c(lines, rowline)
+    }
+    lines <- c(lines, "\n")
+  }
+  lines <- c(lines, ";")
+  writeLines(lines, con = outpath, useBytes = TRUE)
+}
+
+write_heuristic_txt <- function(Parray, outpath) {
+  dims <- dim(Parray)
+  index_i <- dims[1]; index_j <- dims[2]; index_k <- dims[3]
+  lines <- character(0)
+  lines <- c(lines,
+             sprintf("index_i <- %d", index_i),
+             sprintf("index_j <- %d", index_j),
+             sprintf("index_k <- %d", index_k),
+             "",
+             "P <- array(0, dim = c(index_i, index_j, index_k),",
+             "           dimnames = list(",
+             "             i = paste0(\"i\", 1:index_i),",
+             "             j = paste0(\"j\", 1:index_j),",
+             "             k = paste0(\"k\", 1:index_k)",
+             "           ))",
+             ""
+  )
+
+  for (kk in 1:index_k) {
+    lines <- c(lines, sprintf("# k = %d", kk))
+    row_strings <- vapply(1:index_i, function(ii) {
+      paste(Parray[ii, , kk], collapse = ", ")
+    }, FUN.VALUE = character(1))
+    joined_rows <- paste(row_strings, collapse = ",\n")
+    c_block <- paste0("P[,,", kk, "] <- matrix(c(\n", joined_rows, "\n), nrow = index_i, ncol = index_j, byrow = TRUE)")
+    lines <- c(lines, c_block, "")
+  }
+  writeLines(lines, con = outpath, useBytes = TRUE)
+}
+
+# Read and validate the probability CSV
+# Required columns: instance_type, k_min, k_max, j_min, j_max, p1, p2, p3, p4, p5
+if (!file.exists(prob_csv_path)) {
+  stop(paste0("Probability CSV not found at: ", prob_csv_path, "\n",
+              "Please place your CSV there or change 'prob_csv_path' accordingly."))
+}
+
+probs_df_raw <- read.csv(prob_csv_path, stringsAsFactors = FALSE, check.names = FALSE)
+
+# normalize column names (lowercase, trim)
+clean_names <- tolower(gsub("[^[:alnum:]_]", "_", names(probs_df_raw)))
+names(probs_df_raw) <- clean_names
+
+# accept small header typos (e.g., 'instancy_type' -> 'instance_type')
+if (!"instance_type" %in% names(probs_df_raw)) {
+  if ("instancy_type" %in% names(probs_df_raw)) {
+    probs_df_raw$instance_type <- probs_df_raw$instancy_type
+  } else {
+    stop("CSV must include an 'instance_type' column (values: S, M, L).")
+  }
+}
+
+required_cols <- c("instance_type", "k_min", "k_max", "j_min", "j_max", "p1", "p2", "p3", "p4", "p5")
+missing_cols <- setdiff(required_cols, names(probs_df_raw))
+if (length(missing_cols) > 0) stop(paste("CSV missing required columns:", paste(missing_cols, collapse = ", ")))
+
+# coerce numeric and check rows
+probs_df <- probs_df_raw
+probs_df$instance_type <- toupper(trimws(probs_df$instance_type))
+for (cname in c("k_min","k_max","j_min","j_max","p1","p2","p3","p4","p5")) {
+  probs_df[[cname]] <- as.numeric(probs_df[[cname]])
+}
+
+# check p1..p5 sums ~ 1
+row_sums <- rowSums(probs_df[, c("p1","p2","p3","p4","p5")])
+bad_rows <- which(abs(row_sums - 1) > 1e-6)
+if (length(bad_rows) > 0) {
+  stop(sprintf("Rows %s in CSV have p1..p5 that do not sum to 1 (row sums shown): %s",
+               paste(bad_rows, collapse = ", "),
+               paste(sprintf("%g", row_sums[bad_rows]), collapse = ", ")))
+}
+
+# canonical instance specifications 
+instance_specs <- list(
+  S = list(k_max = 5, j_max = 8),
+  M = list(k_max = 5, j_max = 12),
+  L = list(k_max = 10, j_max = 12)
+)
+
+# Validate coverage and overlaps per instance type
+validate_probs_table <- function(probs_df, instance_specs) {
+  msgs <- character(0)
+  for (inst in names(instance_specs)) {
+    k_max <- instance_specs[[inst]]$k_max
+    j_max <- instance_specs[[inst]]$j_max
+    # allocate matrix to track coverage (0 = uncovered, >0 = row index covering)
+    cover_mat <- matrix(0L, nrow = k_max, ncol = j_max)
+    rows_inst <- which(probs_df$instance_type == inst)
+    if (length(rows_inst) == 0) {
+      msgs <- c(msgs, paste0("No rows for instance type '", inst, "'."))
+      next
+    }
+    for (r in rows_inst) {
+      kr <- probs_df$k_min[r]:probs_df$k_max[r]
+      jr <- probs_df$j_min[r]:probs_df$j_max[r]
+      # check bounds
+      if (any(kr < 1 | kr > k_max) || any(jr < 1 | jr > j_max)) {
+        stop(sprintf("Row %d for instance '%s' has k or j ranges outside allowed bounds: k in 1..%d, j in 1..%d",
+                     r, inst, k_max, j_max))
+      }
+      for (kk in kr) {
+        for (jj in jr) {
+          if (cover_mat[kk, jj] != 0L) {
+            # overlap detected
+            stop(sprintf("Overlap detected for instance '%s' at k=%d,j=%d between CSV rows %d and %d",
+                         inst, kk, jj, cover_mat[kk,jj], r))
+          }
+          cover_mat[kk,jj] <- r
+        }
+      }
+    }
+    # check coverage
+    uncovered <- which(cover_mat == 0, arr.ind = TRUE)
+    if (nrow(uncovered) > 0) {
+      # uncovered exists
+      coords <- apply(uncovered, 1, function(x) sprintf("(k=%d,j=%d)", x[1], x[2]))
+      stop(sprintf("CSV does not cover all (k,j) combinations for instance '%s'. Missing: %s",
+                   inst, paste(coords, collapse = ", ")))
+    }
+  }
+  TRUE
+}
+
+# run validation 
+validate_probs_table(probs_df, instance_specs)
+
+# fetch probabilities for a given instance_type, k, j
+get_probs_from_table <- function(instance_type, kk, jj, probs_df) {
+  rows_inst <- which(probs_df$instance_type == toupper(instance_type))
+  # find the row where kk and jj fall into k_min..k_max and j_min..j_max
+  for (r in rows_inst) {
+    if (kk >= probs_df$k_min[r] && kk <= probs_df$k_max[r] &&
+        jj >= probs_df$j_min[r] && jj <= probs_df$j_max[r]) {
+      return(as.numeric(probs_df[r, c("p1","p2","p3","p4","p5")]))
+    }
+  }
+  stop(sprintf("No probability row found for instance=%s at k=%d, j=%d (this should not happen after validation).",
+               instance_type, kk, jj))
+}
+
+# Instance production function using the CSV probabilities 
+produce_instance <- function(index_i, index_j, index_k, dat_filename, heur_filename, instance_type) {
+  # build array by drawing for each (k,j) according to the CSV-specified probs
+  Parray <- array(NA_integer_, dim = c(index_i, index_j, index_k))
+  for (kk in 1:index_k) {
+    for (jj in 1:index_j) {
+      probs <- get_probs_from_table(instance_type, kk, jj, probs_df)
+      probs <- probs / sum(probs)  # safety
+      Parray[, jj, kk] <- sample(1:5, size = index_i, replace = TRUE, prob = probs)
+    }
+  }
+
+  dat_path <- file.path(out_dir, dat_filename)
+  write_ampl_dat(Parray, dat_path)
+
+  heur_path <- file.path(out_dir, heur_filename)
+  write_heuristic_txt(Parray, heur_path)
+
+  invisible(list(dat = dat_path, heur = heur_path))
+}
+
+# Produce the 30 instances
+# 1) First 10 instances: S - small (i=40, j=8, k=5) named "2BAMLGPD_Phase_2_Data_Sx"
+for (x in 1:10) {
+  i <- 40; j <- 8; k <- 5
+  dat_name  <- sprintf("2BAMLGPD_Phase_2_Data_S%d.dat", x)
+  heur_name <- sprintf("HeuristicS%d.txt", x)
+  produce_instance(i, j, k, dat_name, heur_name, instance_type = "S")
+}
+
+# 2) Next 10 instances: M - medium (i=60, j=12, k=5) named "2BAMLGPD_Phase_2_Data_Mx"
+for (x in 1:10) {
+  i <- 60; j <- 12; k <- 5
+  dat_name  <- sprintf("2BAMLGPD_Phase_2_Data_M%d.dat", x)
+  heur_name <- sprintf("HeuristicM%d.txt", x)
+  produce_instance(i, j, k, dat_name, heur_name, instance_type = "M")
+}
+
+# 3) Last 10 instances: L - large (i=120, j=12, k=10) named "2BAMLGPD_Phase_2_Data_Lx"
+for (x in 1:10) {
+  i <- 120; j <- 12; k <- 10
+  dat_name  <- sprintf("2BAMLGPD_Phase_2_Data_L%d.dat", x)
+  heur_name <- sprintf("HeuristicL%d.txt", x)
+  produce_instance(i, j, k, dat_name, heur_name, instance_type = "L")
+}
+
+cat("Generation complete.\n")
+cat("Files written to:", normalizePath(out_dir), "\n")
+if (!is.null(seed)) cat("Seed used:", seed, "\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
